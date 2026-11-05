@@ -67,17 +67,18 @@ flowchart LR
 - **ハルシネーション対策は指示文で設計する**：回答の根拠をFAQに限定する、参照したFAQ IDを必ず示す、範囲外の質問は断って問い合わせ先を案内する、といったルールを指示文に組み込みました。
 - **導入には環境とライセンスの検討が欠かせない**：Copilot StudioやSharePointの検証には組織テナントが必要で、Copilot StudioはMicrosoft 365とは別ライセンスです。技術だけでなく、導入時のコストや環境の検討も重要だと分かりました。
 
-## ロードマップ
+## 拡張案
 
-| 段階 | 内容 | 状態 |
+本PoCは「検索」と「生成」を分けた構成にしているため、それぞれをMicrosoftのサービスに置き換える形で、実運用向けに段階的に拡張できます。
+
+| 拡張先 | 内容 | 期待される効果 |
 |---|---|---|
-| 0 | 生成AIで試作し、会話設計・指示文・評価方法を検証 | 完了 |
-| 1 | Microsoft Copilot Studioでエージェント化（Generative Answers・トピック設計） | 予定 |
-| 2 | SharePointをナレッジ元にしたFAQ管理・文書検索 | 予定 |
-| 3 | Power Automateで問い合わせ履歴の保存とTeams通知 | 予定 |
-| 4 | Azure OpenAI＋Azure AI SearchによるRAG構成、ベクトル検索で検索精度を改善 | 予定 |
+| Copilot Studio | エージェント化し、Teamsから質問できる形で社内に展開 | 社員が普段使うTeams上で自己解決できる |
+| SharePoint | FAQや社内文書をナレッジ元として一元管理 | 情シスがFAQを更新するだけで回答に反映される |
+| Power Automate | 問い合わせ履歴の保存と、未解決時の情シスへのTeams通知 | よくある質問の把握と、解決しない問い合わせの取りこぼし防止 |
+| Azure OpenAI＋Azure AI Search | キーワード検索をベクトル検索に置き換え | 言い換えへの対応力が上がり、検索ヒット率（現在83%）の改善が見込める |
 
-各段階で同じFAQデータ・同じ評価セットを使い、精度の変化を比較します。
+拡張後も同じFAQデータと評価セットを使うことで、精度の変化を数字で比較できます。
 
 ## ファイル構成
 
@@ -85,7 +86,7 @@ flowchart LR
 index.html                         ボット本体（1ファイルで動作）
 data/faq.json                      FAQ 50件
 data/tests.json                    評価用の質問 26問
-data/TechBridge_ITヘルプデスクFAQ.xlsx  FAQと評価シート（SharePointリスト・Copilot Studioへの取り込み用）
+data/techbridge_helpdesk_faq.xlsx     FAQと評価シート（SharePointリスト・Copilot Studioへの取り込み用）
 docs/evaluation.md                 評価の方法と結果
 ```
 
