@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TechBridge ITヘルプデスク FAQボット（試作版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --sunken:#E3E8EF; --ink:#18212E; --muted:#5A6676;
+  --line:#CBD3DE; --brand:#1F4FB8; --brand-ink:#FFFFFF; --brand-soft:#DCE6F9;
+  --amber:#B86E00; --amber-soft:#FBEFD6; --ok:#1E7A4C; --ok-soft:#DDF1E6; --ng:#B3261E; --ng-soft:#F8DEDC;
+  --font:"BIZ UDPGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+  color-scheme:light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161D; --surface:#1A2029; --sunken:#232B36; --ink:#E6EAF0; --muted:#9AA6B5;
+  --line:#344050; --brand:#7FA6F5; --brand-ink:#0E1A33; --brand-soft:#22324F;
+  --amber:#F0B75A; --amber-soft:#3A2D14; --ok:#6FCF97; --ok-soft:#173527; --ng:#F28B82; --ng-soft:#3D1D1B; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#12161D; --surface:#1A2029; --sunken:#232B36; --ink:#E6EAF0; --muted:#9AA6B5;
+  --line:#344050; --brand:#7FA6F5; --brand-ink:#0E1A33; --brand-soft:#22324F;
+  --amber:#F0B75A; --amber-soft:#3A2D14; --ok:#6FCF97; --ok-soft:#173527; --ng:#F28B82; --ng-soft:#3D1D1B; color-scheme:dark;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.7;min-height:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:980px;margin:0 auto;padding:12px 20px 0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 24px}
+.title{display:flex;align-items:center;gap:10px;padding-bottom:12px;margin-right:auto}
+.logo{width:30px;height:30px;border-radius:7px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:700;font-size:14px}
+.title h1{font-size:16px;margin:0;line-height:1.3}
+.title small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+nav{display:flex;gap:4px}
+nav button{border:0;background:none;padding:10px 14px;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;font-weight:700;font-size:14px}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brand)}
+main{max-width:980px;margin:0 auto;padding:20px}
+[hidden]{display:none!important}
+.mode{font-size:13px;color:var(--muted);margin:0 0 14px}
+.mode b{color:var(--amber)}
+
+/* chat */
+#log{display:flex;flex-direction:column;gap:18px;padding-bottom:110px}
+.msg{max-width:720px}
+.me{align-self:flex-end;background:var(--brand);color:var(--brand-ink);padding:10px 14px;border-radius:14px 14px 4px 14px;max-width:min(560px,85%)}
+.bot{align-self:flex-start;width:100%}
+.bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:14px 16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.who{font-size:12px;color:var(--muted);margin:0 0 4px 2px}
+.thinking{color:var(--muted)}
+.cites{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center;font-size:12px;color:var(--muted)}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--ink)}
+.chip.id{background:var(--brand-soft);border-color:transparent;font-weight:700}
+.trace{margin-top:8px;font-size:13px}
+.trace summary{cursor:pointer;color:var(--muted);width:max-content}
+.trace ol{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.trace li{display:grid;grid-template-columns:76px 1fr 64px;gap:10px;align-items:center}
+.trace .meter{height:6px;background:var(--sunken);border-radius:3px;overflow:hidden}
+.trace .meter i{display:block;height:100%;background:var(--brand)}
+.trace .q{grid-column:2/4;color:var(--muted);font-size:12px;margin-top:-4px}
+.used{font-weight:700}
+.fb{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.fb button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 12px;cursor:pointer}
+.fb button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.esc{margin-top:10px;background:var(--amber-soft);border-left:4px solid var(--amber);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px}
+.empty{padding:28px 0 8px}
+.empty h2{font-size:22px;margin:0 0 6px}
+.empty p{color:var(--muted);margin:0 0 16px}
+.sugs{display:flex;flex-wrap:wrap;gap:8px}
+.sugs button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;cursor:pointer;text-align:left}
+.sugs button:hover{border-color:var(--brand)}
+.composer{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--bg) 70%,transparent);padding:16px 20px calc(16px + env(safe-area-inset-bottom,0px))}
+.composer form{max-width:940px;margin:0 auto;display:flex;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px}
+.composer textarea{flex:1;border:0;background:none;resize:none;padding:8px 10px;min-height:42px;max-height:140px;outline:none}
+.composer form:focus-within{outline:3px solid var(--brand);outline-offset:1px}
+.primary{background:var(--brand);color:var(--brand-ink);border:0;border-radius:10px;padding:0 18px;font-weight:700;cursor:pointer;white-space:nowrap}
+.primary:disabled{opacity:.5;cursor:default}
+.ghost{background:none;border:1px solid var(--line);border-radius:10px;padding:0 14px;cursor:pointer}
+
+/* tests */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.stat b{font-size:28px;display:block;line-height:1.2}
+.stat span{font-size:13px;color:var(--muted)}
+.stat p{margin:6px 0 0;font-size:12px;color:var(--muted)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tools button{padding:8px 14px}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:700;background:var(--sunken)}
+tr:last-child td{border-bottom:0}
+.hit{color:var(--ok);font-weight:700}.miss{color:var(--ng);font-weight:700}
+.ids{font-size:12px;line-height:1.5}
+.ids span{display:inline-block;margin-right:4px}
+.judge{display:flex;gap:4px}
+.judge button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:13px}
+.judge button[data-v="OK"][aria-pressed="true"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);font-weight:700}
+.judge button[data-v="部分的"][aria-pressed="true"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
+.judge button[data-v="NG"][aria-pressed="true"]{background:var(--ng-soft);border-color:var(--ng);color:var(--ng);font-weight:700}
+.ans{margin-top:8px;white-space:pre-wrap;font-size:13px;background:var(--sunken);padding:8px 10px;border-radius:6px}
+.small{font-size:12px;color:var(--muted)}
+.linkbtn{background:none;border:0;color:var(--brand);cursor:pointer;padding:0;font-weight:700}
+
+/* faq */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.search{width:100%;max-width:420px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:12px}
+.faq{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.faq summary{padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:baseline}
+.faq summary code{font-family:var(--font);font-size:12px;color:var(--brand);font-weight:700;min-width:62px}
+.faq .body{padding:0 16px 14px 90px;white-space:pre-wrap;font-size:14px}
+.faq .body .small{display:block;margin-top:8px}
+@media (max-width:600px){.faq .body{padding-left:16px}.bar{padding:10px 14px 0}main{padding:14px}}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);max-width:560px;width:calc(100% - 32px);padding:20px}
+dialog::backdrop{background:rgba(10,15,25,.45)}
+dialog h3{margin:0 0 4px;font-size:16px}
+dialog pre{white-space:pre-wrap;font-family:var(--font);margin:12px 0}
+@media (prefers-reduced-motion:no-preference){.bot{animation:in .25s ease-out}@keyframes in{from{opacity:0;transform:translateY(4px)}}}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <div class="title"><div class="logo" aria-hidden="true">TB</div><div><h1>ITヘルプデスク FAQボット</h1><small>TechBridge Solutions株式会社 情報システム部（試作版）</small></div></div>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="chat">質問する</button>
+    <button role="tab" aria-selected="false" data-tab="test">テスト</button>
+    <button role="tab" aria-selected="false" data-tab="faq">FAQ一覧</button>
+  </nav>
+</div></header>
+
+<main>
+<section id="tab-chat">
+  <p class="mode" id="mode">Claudeに接続しています…</p>
+  <div id="log">
+    <div class="empty" id="empty">
+      <h2>ITやお手続きで困ったことはありますか</h2>
+      <p>VPN、Teams、Outlook、パスワード、MFA、PC、経費精算、人事手続きの質問に、社内FAQをもとに回答します。</p>
+      <div class="sugs" id="sugs"></div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-test" hidden>
+  <div class="stats">
+    <div class="stat"><span>検索ヒット率（上位5件に正解FAQ）</span><b id="s-recall">–</b><p>ボットに渡すFAQ候補に、期待するFAQが含まれた割合。キーワード検索の実力です。</p></div>
+    <div class="stat"><span>回答の正答率（OK ÷ 判定済み）</span><b id="s-acc">–</b><p id="s-acc-note">「ボットに聞く」で回答を確認し、判定を付けてください。</p></div>
+  </div>
+  <div class="tools">
+    <button class="ghost" id="runAll">すべてボットに聞く</button>
+    <button class="ghost" id="resetJ">判定をリセット</button>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th style="width:34%">テスト質問</th><th>期待FAQ</th><th>検索上位5件</th><th>ボットの回答</th><th>判定</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</section>
+
+<section id="tab-faq" hidden>
+  <input class="search" id="fq" type="search" placeholder="FAQを絞り込む（例：Authenticator）" aria-label="FAQを絞り込む">
+  <div class="filters" id="filters"></div>
+  <div id="faqlist"></div>
+</section>
+</main>
+
+<div class="composer" id="composer"><form id="form">
+  <textarea id="q" rows="1" placeholder="例：VPNにつながりません" aria-label="質問を入力"></textarea>
+  <button class="ghost" type="button" id="stop" hidden>停止</button>
+  <button class="primary" id="send" type="submit">送信</button>
+</form></div>
+
+<dialog id="dlg"><h3 id="dlg-t"></h3><div class="small" id="dlg-m"></div><pre id="dlg-a"></pre><button class="ghost" style="padding:6px 14px" id="dlg-c">閉じる</button></dialog>
+
+<script>
+const DATA = {"faq": [{"id": "VPN-001", "cat": "VPN", "q": "VPNに接続できません", "a": "1. インターネット（Wi-Fi・有線）に接続できているか確認します。\n2. 社内VPNクライアント「TB-Connect」を起動し、［接続］をクリックします。\n3. スマートフォンのMicrosoft Authenticatorに届いた通知を承認します。\n4. タスクトレイのTB-Connectアイコンが緑色（接続済み）になっているか確認します。\n5. 改善しない場合はPCを再起動し、もう一度お試しください。", "kw": "VPN,接続できない,つながらない,TB-Connect,リモート", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "VPN-002", "cat": "VPN", "q": "VPNクライアントをインストールしたい", "a": "1. スタートメニューから「ポータル サイト（Company Portal）」アプリを開きます。\n2. 「TB-Connect」を検索し、［インストール］をクリックします。\n3. インストール完了後、PCを再起動します。\n4. 初回起動時に会社のメールアドレスでサインインします。\n※ 会社貸与PC以外へのインストールはできません。", "kw": "VPN,インストール,TB-Connect,導入", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "VPN-003", "cat": "VPN", "q": "VPNが頻繁に切断されます", "a": "1. Wi-Fiの電波状況を確認し、可能であれば有線LANをご利用ください。\n2. Windowsの［設定］→［システム］→［電源］で、省電力モードをオフにします。\n3. ポータル サイトでTB-Connectが最新版か確認し、更新があれば適用します。\n4. 改善しない場合は、切断された時刻をメモのうえ情シスへご連絡ください。", "kw": "VPN,切断,切れる,不安定", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "VPN-004", "cat": "VPN", "q": "カフェや公共施設からVPN接続してもよいですか", "a": "社内規程により、パスワードなしの公衆Wi-Fiからの接続は禁止しています。\n1. 外出先ではスマートフォンのテザリングまたは会社貸与のモバイルルーターをご利用ください。\n2. 画面ののぞき見防止のため、プライバシーフィルターを装着してください。\n3. 離席時は必ず画面をロック（Windowsキー＋L）してください。", "kw": "VPN,公衆Wi-Fi,カフェ,外出先,テザリング,セキュリティ", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "VPN-005", "cat": "VPN", "q": "VPN接続中なのに社内システムにアクセスできません", "a": "1. TB-Connectが「接続済み」になっているか確認します。\n2. アクセス先のURLが正しいか確認します（ブックマークが古い場合があります）。\n3. ブラウザのキャッシュを削除し、再度アクセスします。\n4. コマンドプロンプトで「ipconfig /flushdns」を実行します。\n5. 特定のシステムだけ開けない場合は、システム名を添えて情シスへご連絡ください。", "kw": "VPN,社内システム,アクセスできない,イントラ", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "VPN-006", "cat": "VPN", "q": "VPN接続時に認証エラーが表示されます", "a": "1. パスワードの有効期限切れやアカウントロックがないか確認します（関連：PWD-003）。\n2. Authenticatorの通知を承認したか確認します。\n3. PCとスマートフォンの時刻が正しいか確認します。\n4. 直近でパスワードを変更した場合は、新しいパスワードを入力してください。", "kw": "VPN,認証エラー,サインインできない,ログインエラー", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "VPN-007", "cat": "VPN", "q": "海外出張先でVPNを使いたい", "a": "1. 出張の3営業日前までに、TB人事ポータルの「海外出張申請」でVPN利用を申請してください。\n2. 国・地域によってはVPN利用が法律で制限されているため、情シスから利用可否をご連絡します。\n3. 出発前に国内でVPN接続できることを確認してください。", "kw": "VPN,海外,出張,海外出張", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-001", "cat": "Teams", "q": "Teamsにサインインできません", "a": "1. 会社のメールアドレス（例：taro.yamada@techbridge.example）を入力しているか確認します。\n2. Teamsを完全に終了（タスクトレイのアイコンを右クリック→［終了］）し、再起動します。\n3. ブラウザ版（https://teams.microsoft.com）でサインインできるか確認します。\n4. ブラウザ版でもサインインできない場合はパスワードやMFAの問題が考えられます（関連：PWD-001、MFA-003）。", "kw": "Teams,サインイン,ログインできない", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-002", "cat": "Teams", "q": "Teams会議の作成方法を教えてください", "a": "1. Teamsの左メニューから［予定表］を開きます。\n2. 右上の［新しい会議］をクリックします。\n3. タイトル・参加者・日時を入力します。\n4. ［送信］をクリックすると、参加者に招待が届きます。\n※ Outlookの予定表から［Teams会議］をオンにして作成することもできます。", "kw": "Teams,会議,作成,予約,ミーティング", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-003", "cat": "Teams", "q": "Teamsで画面共有ができません", "a": "1. 会議中のツールバーで［共有］をクリックし、共有する画面またはウィンドウを選択します。\n2. 共有ボタンが押せない場合は、会議の開催者が共有を制限していないか確認します。\n3. Macの場合は［システム設定］→［プライバシーとセキュリティ］→［画面収録］でTeamsを許可します。\n4. 改善しない場合はTeamsを再起動してください。", "kw": "Teams,画面共有,共有できない,プレゼン", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-004", "cat": "Teams", "q": "Teamsでマイクやカメラが使えません", "a": "1. 会議参加前の画面で、マイクとカメラがオンになっているか確認します。\n2. ［設定］→［デバイス］で、使用するマイク・カメラ・スピーカーが正しく選択されているか確認します。\n3. Windowsの［設定］→［プライバシーとセキュリティ］で、カメラ・マイクへのアクセスを許可します。\n4. 他のアプリ（Zoom等）がカメラを使用していないか確認します。", "kw": "Teams,マイク,カメラ,音声,聞こえない,映らない", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-005", "cat": "Teams", "q": "新しいチームやチャネルを作りたい", "a": "社内規程により、新しいチームの作成は申請制です。\n1. TB人事ポータルの「Teamsチーム作成申請」から、チーム名・目的・所有者（2名以上）を入力して申請します。\n2. 情シスが内容を確認し、2営業日以内に作成します。\n※ 既存チーム内のチャネルは、チームの所有者が自由に作成できます。", "kw": "Teams,チーム作成,チャネル,申請", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-006", "cat": "Teams", "q": "社外の人とTeams会議をしたい", "a": "1. 通常のTeams会議を作成し、参加者欄に社外の方のメールアドレスを入力します。\n2. 社外の方はアカウントがなくても、招待リンクからブラウザで参加できます。\n3. 社外の方を継続的にチームへ追加（ゲスト招待）する場合は、情シスへ申請してください。\n※ 機密情報を含む資料の共有には十分ご注意ください。", "kw": "Teams,社外,外部,ゲスト,取引先", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "TMS-007", "cat": "Teams", "q": "Teamsの通知が届きません", "a": "1. Teamsの［設定］→［通知とアクティビティ］で、通知がオンになっているか確認します。\n2. Windowsの［設定］→［システム］→［通知］で、Teamsの通知が許可されているか確認します。\n3. 自分のステータスが「応答不可」になっていないか確認します。\n4. スマートフォンの場合は、OS側の通知設定でTeamsが許可されているか確認します。", "kw": "Teams,通知,届かない,鳴らない", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-001", "cat": "Outlook", "q": "新しいPCでOutlookを設定したい", "a": "1. Outlookを起動します。\n2. 会社のメールアドレスを入力し、［接続］をクリックします。\n3. パスワードを入力し、Authenticatorの通知を承認します。\n4. 「アカウントが正常に追加されました」と表示されたら完了です。\n※ 初回はメールの同期に数分〜数十分かかる場合があります。", "kw": "Outlook,設定,初期設定,メール設定,新しいPC", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-002", "cat": "Outlook", "q": "メールの送受信ができません", "a": "1. インターネットに接続できているか確認します。\n2. Outlook下部に「オフライン作業中」と表示されていないか確認し、［送受信］タブ→［オフライン作業］をオフにします。\n3. 送信トレイにメールが残っている場合、添付ファイルが大きすぎないか確認します（上限25MB）。\n4. ブラウザ版（https://outlook.office.com）で送受信できるか確認します。", "kw": "Outlook,送受信,送れない,届かない,メール", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-003", "cat": "Outlook", "q": "メールの署名を設定したい", "a": "1. Outlookの［ファイル］→［オプション］→［メール］→［署名］を開きます。\n2. ［新規作成］をクリックし、署名名を入力します。\n3. 社内標準フォーマット（氏名／部署／会社名／電話番号／メールアドレス）で署名を入力します。\n4. ［新しいメッセージ］と［返信／転送］に作成した署名を設定し、［OK］をクリックします。", "kw": "Outlook,署名,シグネチャ", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-004", "cat": "Outlook", "q": "休暇中の自動応答を設定したい", "a": "1. Outlookの［ファイル］→［自動応答］を開きます。\n2. ［自動応答を送信する］を選択し、期間を指定します。\n3. 社内向け・社外向けのメッセージをそれぞれ入力します。\n4. ［OK］をクリックして保存します。\n※ 社外向けメッセージには、代理の連絡先を記載することを推奨します。", "kw": "Outlook,自動応答,不在,休暇,外出", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-005", "cat": "Outlook", "q": "共有メールボックスを追加したい", "a": "1. 共有メールボックスの利用には、管理者による権限付与が必要です。情シスへ対象のメールボックス名を連絡してください。\n2. 権限付与後、Outlookを再起動すると、左側のフォルダー一覧に自動で表示されます。\n3. 表示されない場合は、［ファイル］→［アカウント設定］→［詳細設定］から追加します。", "kw": "Outlook,共有メールボックス,共有アドレス,代表アドレス", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-006", "cat": "Outlook", "q": "怪しいメール（フィッシングメール）が届きました", "a": "1. メール内のリンクは開かず、添付ファイルもダウンロードしないでください。\n2. Outlookのリボンにある［報告］→［フィッシング］をクリックして報告します。\n3. 誤ってリンクを開いた・情報を入力した場合は、すぐにパスワードを変更し、情シスへ連絡してください。", "kw": "Outlook,フィッシング,迷惑メール,怪しいメール,スパム,セキュリティ", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "OTL-007", "cat": "Outlook", "q": "メールボックスの容量がいっぱいです", "a": "1. ［削除済みアイテム］フォルダーを空にします。\n2. 容量の大きいメールを検索（検索バーで「サイズ」→「大きい」）し、不要なものを削除します。\n3. 添付ファイルはOneDriveに保存し、メールからは削除します。\n4. 業務上どうしても容量が足りない場合は、情シスへご相談ください。", "kw": "Outlook,容量,いっぱい,メールボックス", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PWD-001", "cat": "パスワード", "q": "パスワードを忘れました", "a": "セルフサービスパスワードリセットで、ご自身でリセットできます。\n1. https://aka.ms/sspr にアクセスします。\n2. 会社のメールアドレスと画面に表示された文字を入力します。\n3. Authenticatorまたは登録済みの電話番号で本人確認を行います。\n4. 新しいパスワードを設定します（要件はPWD-004を参照）。", "kw": "パスワード,忘れた,リセット,再設定,SSPR", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PWD-002", "cat": "パスワード", "q": "パスワードを変更したい", "a": "1. 会社PCで［Ctrl］＋［Alt］＋［Delete］キーを押し、［パスワードの変更］を選択します。\n2. 現在のパスワードと新しいパスワードを入力します。\n3. ブラウザから変更する場合は https://myaccount.microsoft.com の［パスワード］から変更できます。\n※ 変更後、Outlook・Teamsで再サインインを求められる場合があります（PWD-006）。", "kw": "パスワード,変更,更新", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PWD-003", "cat": "パスワード", "q": "アカウントがロックされました", "a": "パスワードを規定回数以上間違えると、アカウントが一時的にロックされます。\n1. 30分程度待ってから、正しいパスワードで再度サインインしてください。\n2. パスワードを忘れた場合は、https://aka.ms/sspr からリセットしてください（PWD-001）。\n3. 身に覚えのないロックが繰り返される場合は、不正アクセスの可能性があるため情シスへ連絡してください。", "kw": "パスワード,ロック,ロックアウト,サインインできない", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PWD-004", "cat": "パスワード", "q": "パスワードの条件を教えてください", "a": "社内のパスワード要件は以下のとおりです。\n・12文字以上\n・英大文字、英小文字、数字、記号のうち3種類以上を含む\n・氏名や社員番号、過去に使ったパスワードは使用不可\n※ 推測されにくい長めのフレーズ（パスフレーズ）を推奨します。", "kw": "パスワード,条件,要件,ルール,文字数", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PWD-005", "cat": "パスワード", "q": "パスワードの有効期限はありますか", "a": "当社では定期的なパスワード変更は求めていません（有効期限なし）。\nただし、以下の場合は速やかに変更してください。\n・フィッシングメールでパスワードを入力してしまった\n・他人にパスワードを知られた可能性がある\n・情シスから変更の依頼があった", "kw": "パスワード,有効期限,期限切れ,定期変更", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PWD-006", "cat": "パスワード", "q": "パスワード変更後、Outlookなどで何度もパスワードを聞かれます", "a": "1. 表示された画面で、新しいパスワードを入力してサインインし直します。\n2. 改善しない場合は、Windowsの［資格情報マネージャー］を開き、［Windows資格情報］から「MicrosoftOffice」で始まる項目を削除します。\n3. PCを再起動し、Outlook・Teamsに再度サインインします。", "kw": "パスワード,変更後,何度も聞かれる,資格情報", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "MFA-001", "cat": "MFA", "q": "Microsoft Authenticatorの初期設定方法を教えてください", "a": "1. スマートフォンに「Microsoft Authenticator」アプリをインストールします。\n2. PCのブラウザで https://aka.ms/mfasetup にアクセスし、会社アカウントでサインインします。\n3. ［サインイン方法の追加］→［認証アプリ］を選択し、画面に表示されたQRコードをアプリで読み取ります。\n4. テスト通知を承認して設定完了です。", "kw": "MFA,Authenticator,多要素認証,初期設定,二段階認証", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "MFA-002", "cat": "MFA", "q": "スマートフォンを機種変更します。Authenticatorはどうすればよいですか", "a": "1. 機種変更前に、新しいスマートフォンへAuthenticatorをインストールします。\n2. 古いスマートフォンが使えるうちに、PCで https://aka.ms/mfasetup にアクセスします。\n3. 新しいスマートフォンを認証アプリとして追加し、既定のサインイン方法に設定します。\n4. 新しいスマートフォンで承認できることを確認してから、古い端末の登録を削除します。\n※ 古い端末を先に初期化してしまった場合は、情シスへご連絡ください。", "kw": "MFA,Authenticator,機種変更,スマホ買い替え,移行", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "MFA-003", "cat": "MFA", "q": "Authenticatorの通知が届きません", "a": "1. スマートフォンがインターネットに接続されているか確認します。\n2. スマートフォンの設定で、Authenticatorの通知が許可されているか確認します。\n3. Authenticatorアプリを直接開くと、承認待ちの通知が表示される場合があります。\n4. 通知が来ない場合は、サインイン画面の［別の方法でサインイン］から、アプリに表示される確認コードを入力します。", "kw": "MFA,Authenticator,通知,届かない,承認できない", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "MFA-004", "cat": "MFA", "q": "Authenticatorを登録したスマートフォンを紛失しました", "a": "1. 速やかに情シスへ連絡してください（夜間・休日は it-help@techbridge.example へメール）。\n2. 情シスが紛失した端末の登録を削除し、一時アクセスパスを発行します。\n3. 新しい端末でAuthenticatorを再設定します（MFA-001）。\n※ 会社貸与スマートフォンの場合は、端末のリモートロックも実施します。", "kw": "MFA,Authenticator,スマホ紛失,なくした", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "MFA-005", "cat": "MFA", "q": "身に覚えのないAuthenticatorの通知が来ました", "a": "第三者があなたのパスワードを使ってサインインしようとしている可能性があります。\n1. 通知は絶対に承認せず、［拒否］をタップします。\n2. 「このサインインに心当たりがない」と報告します。\n3. すぐにパスワードを変更します（PWD-002）。\n4. 情シスへ通知を受けた日時をご連絡ください。", "kw": "MFA,Authenticator,身に覚えがない,不審な通知,不正アクセス,セキュリティ", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "MFA-006", "cat": "MFA", "q": "スマートフォンを持っていない、または業務で使えません", "a": "スマートフォンを利用できない方には、ハードウェアトークン（ワンタイムパスワード生成機）を貸与しています。\n1. 上長の承認を得たうえで、情シスへ貸与を申請してください。\n2. 情シスでトークンを登録後、受け取りの連絡をします。\n3. サインイン時は、トークンに表示される6桁の数字を入力します。", "kw": "MFA,スマホなし,ハードウェアトークン,ワンタイムパスワード", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PC-001", "cat": "Windows PC", "q": "新しいPCの初期設定方法を教えてください", "a": "1. PCの電源を入れ、Wi-Fiに接続します。\n2. 「職場または学校用に設定」画面で会社のメールアドレスを入力します。\n3. パスワードを入力し、Authenticatorの通知を承認します（未設定の場合はMFA-001を先に実施）。\n4. 業務アプリが自動でインストールされます（30分〜1時間程度）。\n5. 完了後、Outlook（OTL-001）・Teams・VPN（VPN-002）の動作を確認します。", "kw": "PC,初期設定,キッティング,新しいPC,セットアップ,Windows", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PC-002", "cat": "Windows PC", "q": "ソフトウェアをインストールしたい", "a": "1. 「ポータル サイト（Company Portal）」アプリを開きます。\n2. 必要なソフトウェアを検索し、［インストール］をクリックします。\n3. ポータル サイトにないソフトウェアは、TB人事ポータルの「ソフトウェア利用申請」から申請してください。\n※ 許可されていないフリーソフトのインストールは禁止です。", "kw": "PC,ソフトウェア,インストール,アプリ,ポータルサイト", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PC-003", "cat": "Windows PC", "q": "Windows Updateはどうすればよいですか", "a": "Windows Updateは自動で配信されます。\n1. 「再起動が必要です」と表示されたら、業務の区切りでPCを再起動してください。\n2. 手動で確認する場合は、［設定］→［Windows Update］→［更新プログラムのチェック］をクリックします。\n※ 配信から7日以上再起動しない場合、自動で再起動されます。", "kw": "PC,Windows Update,更新,アップデート,再起動", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PC-004", "cat": "Windows PC", "q": "PCの動作が遅いです", "a": "1. PCを再起動します（長期間再起動していない場合に効果的です）。\n2. 不要なアプリやブラウザのタブを閉じます。\n3. タスクマネージャー（［Ctrl］＋［Shift］＋［Esc］）で、CPUやメモリを多く使っているアプリを確認します。\n4. ディスクの空き容量が10%以上あるか確認します。\n5. 改善しない場合は、症状と発生時間をメモのうえ情シスへご連絡ください。", "kw": "PC,遅い,重い,動作が遅い,フリーズ", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PC-005", "cat": "Windows PC", "q": "プリンターを追加したい", "a": "1. 社内ネットワーク（またはVPN）に接続します。\n2. ［設定］→［Bluetoothとデバイス］→［プリンターとスキャナー］を開きます。\n3. ［デバイスの追加］をクリックし、各フロアのプリンター名（例：TB-3F-PRINTER）を選択します。\n4. テスト印刷を行い、印刷できることを確認します。", "kw": "PC,プリンター,印刷,追加", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "PC-006", "cat": "Windows PC", "q": "会社のPCを紛失・盗難されました", "a": "情報漏えい防止のため、直ちに以下を行ってください。\n1. すぐに情シスへ電話（内線1234、夜間・休日は緊急連絡先 03-0000-0000）で連絡します。\n2. 情シスがPCのリモートロックとデータ消去を実施します。\n3. 上長へ報告し、盗難の場合は警察へ届け出ます。\n4. 後日、TB人事ポータルの「事故報告書」を提出します。", "kw": "PC,紛失,盗難,なくした,セキュリティ事故", "contact": "情シス（Teams「情シス問い合わせ」チャネル／内線1234）"}, {"id": "EXP-001", "cat": "経費精算", "q": "経費精算の申請方法を教えてください", "a": "1. 経費精算システム「TB経費ナビ」にサインインします。\n2. ［新規申請］→［経費精算］を選択します。\n3. 日付・金額・勘定科目・用途を入力します。\n4. 領収書をスマートフォンで撮影するかPDFで添付します。\n5. ［申請］をクリックすると、上長へ承認依頼が送られます。", "kw": "経費精算,申請,立替,TB経費ナビ", "contact": "経理部（keiri@techbridge.example／内線2200）"}, {"id": "EXP-002", "cat": "経費精算", "q": "領収書をなくしてしまいました", "a": "1. TB経費ナビで申請する際、［領収書なし］にチェックを入れます。\n2. 「領収書紛失理由書」（TB経費ナビ内でダウンロード可能）に、日付・支払先・金額・紛失理由を記入して添付します。\n3. 上長の承認後、経理部で確認します。\n※ 領収書の紛失が繰り返される場合、精算が認められないことがあります。", "kw": "経費精算,領収書,紛失,なくした", "contact": "経理部（keiri@techbridge.example／内線2200）"}, {"id": "EXP-003", "cat": "経費精算", "q": "交通費の精算方法を教えてください", "a": "1. TB経費ナビで［新規申請］→［交通費精算］を選択します。\n2. 出発地・到着地を入力すると、経路と運賃が自動で表示されます。\n3. 訪問先と目的を入力します。\n4. 定期区間と重複する区間は申請できません。\n※ タクシー利用時は、利用理由と領収書の添付が必要です。", "kw": "経費精算,交通費,電車,タクシー,出張", "contact": "経理部（keiri@techbridge.example／内線2200）"}, {"id": "EXP-004", "cat": "経費精算", "q": "経費精算の締め日はいつですか", "a": "・締め日：毎月末日（当月分の経費を翌月5営業日までに申請）\n・上長承認：翌月7営業日まで\n・支払日：翌月25日（土日祝の場合は前営業日）\n※ 3か月以上前の経費は、経理部への事前相談が必要です。", "kw": "経費精算,締め日,期限,いつまで", "contact": "経理部（keiri@techbridge.example／内線2200）"}, {"id": "EXP-005", "cat": "経費精算", "q": "経費精算が差し戻されました", "a": "1. TB経費ナビの［申請一覧］から差し戻された申請を開きます。\n2. コメント欄に記載された差し戻し理由を確認します。\n3. 内容を修正し、［再申請］をクリックします。\nよくある差し戻し理由：領収書の未添付・画像が不鮮明、勘定科目の誤り、用途の記載不足", "kw": "経費精算,差し戻し,却下,修正", "contact": "経理部（keiri@techbridge.example／内線2200）"}, {"id": "EXP-006", "cat": "経費精算", "q": "立て替えた経費はいつ振り込まれますか", "a": "承認済みの経費は、毎月25日に給与振込口座へ振り込まれます（土日祝の場合は前営業日）。\n・当月末までに上長・経理部の承認が完了した分が、翌月25日の支払対象です。\n・振込状況はTB経費ナビの［支払履歴］で確認できます。", "kw": "経費精算,振込,支払日,いつ,入金", "contact": "経理部（keiri@techbridge.example／内線2200）"}, {"id": "HR-001", "cat": "人事手続き", "q": "有給休暇の申請方法を教えてください", "a": "1. 「TB人事ポータル」にサインインします。\n2. ［勤怠］→［休暇申請］を選択します。\n3. 休暇の種類（全日・半日・時間単位）と日付を入力します。\n4. ［申請］をクリックすると、上長へ承認依頼が送られます。\n※ 原則として取得日の3営業日前までに申請してください。", "kw": "有給,有給休暇,休暇申請,年休,休み", "contact": "人事部（jinji@techbridge.example／内線2300）"}, {"id": "HR-002", "cat": "人事手続き", "q": "有給休暇の残日数を確認したい", "a": "1. 「TB人事ポータル」にサインインします。\n2. トップ画面の［休暇残日数］で、有給休暇の残日数と有効期限を確認できます。\n※ 有給休暇は付与日から2年で失効します。年5日以上の取得が義務付けられています。", "kw": "有給,残日数,残り,何日", "contact": "人事部（jinji@techbridge.example／内線2300）"}, {"id": "HR-003", "cat": "人事手続き", "q": "引っ越しをしたので住所変更をしたい", "a": "1. 「TB人事ポータル」の［各種届出］→［住所変更届］を開きます。\n2. 新住所・転居日を入力します。\n3. 通勤経路が変わる場合は、同時に［通勤経路変更届］も提出してください（交通費精算に影響します）。\n4. 転居後2週間以内に提出してください。", "kw": "住所変更,引っ越し,転居,通勤経路", "contact": "人事部（jinji@techbridge.example／内線2300）"}, {"id": "HR-004", "cat": "人事手続き", "q": "在宅勤務の申請方法を教えてください", "a": "1. 「TB人事ポータル」の［勤怠］→［在宅勤務申請］を選択します。\n2. 在宅勤務する日付と業務内容を入力します。\n3. 前営業日までに申請し、上長の承認を得てください。\n※ 在宅勤務時はVPN接続（VPN-001）が必要です。セキュリティルール（VPN-004）も確認してください。", "kw": "在宅勤務,テレワーク,リモートワーク,申請", "contact": "人事部（jinji@techbridge.example／内線2300）"}, {"id": "HR-005", "cat": "人事手続き", "q": "年末調整の書類はいつまでに提出すればよいですか", "a": "年末調整は「TB人事ポータル」上で行います。\n1. 11月上旬に人事部から案内メールが届きます。\n2. TB人事ポータルの［年末調整］から、扶養情報や保険料控除の情報を入力します。\n3. 保険料控除証明書などの書類はPDFまたは写真で添付します。\n4. 提出期限は案内メールに記載された日付（例年11月下旬）です。", "kw": "年末調整,提出期限,保険料控除,扶養", "contact": "人事部（jinji@techbridge.example／内線2300）"}], "tests": [{"q": "vpnつながらないんだけど", "exp": "VPN-001", "point": "言い回しの揺れ（口語・小文字）"}, {"q": "家から社内のシステムに入れません", "exp": "VPN-001", "point": "「VPN」という語を含まない"}, {"q": "スタバのWi-Fiで仕事してもいい？", "exp": "VPN-004", "point": "具体的な店名を含む"}, {"q": "来月シンガポールに出張するけどVPN使える？", "exp": "VPN-007", "point": "海外出張"}, {"q": "ミーティングの予約ってどうやるの", "exp": "TMS-002", "point": "「会議」の言い換え"}, {"q": "会議で相手に声が届いていないみたい", "exp": "TMS-004", "point": "症状ベースの質問"}, {"q": "取引先の人をTeamsに呼びたい", "exp": "TMS-006", "point": "社外参加者"}, {"q": "メールが送れない", "exp": "OTL-002", "point": "短い質問"}, {"q": "来週から夏休みなので不在メッセージを設定したい", "exp": "OTL-004", "point": "自動応答の言い換え"}, {"q": "変なメールのリンクを踏んでしまった", "exp": "OTL-006", "point": "緊急度が高いセキュリティ事案"}, {"q": "ログインパスワードがわからなくなった", "exp": "PWD-001", "point": "パスワード忘れ"}, {"q": "パスワードって何文字以上必要？", "exp": "PWD-004", "point": "要件の確認"}, {"q": "二段階認証のアプリを新しいiPhoneに移したい", "exp": "MFA-002", "point": "MFAの言い換え"}, {"q": "夜中に承認してくださいという通知が勝手に来た", "exp": "MFA-005", "point": "不審な通知（セキュリティ）"}, {"q": "新しいノートPCが届いたので何をすればいいか教えて", "exp": "PC-001", "point": "初期設定の手順"}, {"q": "パソコンが重くて仕事にならない", "exp": "PC-004", "point": "感情を含む質問"}, {"q": "電車にPCを置き忘れた", "exp": "PC-006", "point": "緊急度が高い事案"}, {"q": "タクシー代を精算したい", "exp": "EXP-003", "point": "交通費の一種"}, {"q": "レシートを捨ててしまった", "exp": "EXP-002", "point": "領収書の言い換え"}, {"q": "立替金っていつ戻ってくる？", "exp": "EXP-006", "point": "振込時期"}, {"q": "来週金曜に休みを取りたい", "exp": "HR-001", "point": "有給の言い換え"}, {"q": "有休あと何日残ってる？", "exp": "HR-002", "point": "表記揺れ（有休／有給）"}, {"q": "テレワークしたい日があるんだけど", "exp": "HR-004", "point": "在宅勤務の言い換え"}, {"q": "VPNにつながらないし、パスワードも忘れた", "exp": "VPN-001 / PWD-001", "point": "複数の問題を含む質問"}, {"q": "社員食堂のメニューを教えて", "exp": "該当なし", "point": "FAQ範囲外：回答できない旨と連絡先を案内できるか"}, {"q": "給料はいくらに上がりますか", "exp": "該当なし", "point": "FAQ範囲外：個人情報・回答不可の判断"}]};
+const FAQ = DATA.faq, TESTS = DATA.tests;
+const IT_CONTACT = "情シス（Teams「情シス問い合わせ」チャネル／内線1234）";
+const $ = s => document.querySelector(s);
+const el = (t, p = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(p)) { if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const c of kids) if (c != null) e.append(c); return e; };
+
+/* ---------- retrieval (文字バイグラム + IDF) ---------- */
+function norm(s){return (s||"").normalize("NFKC").toLowerCase().replace(/[\s、。・,.!?「」『』()\[\]【】:;\-~"'’“”…\/／]/g,"");}
+function grams(s){const t=norm(s),g=new Set();for(let i=0;i<t.length-1;i++)g.add(t.slice(i,i+2));if(t.length===1)g.add(t);return g;}
+const IX=(()=>{const post=new Map();FAQ.forEach((f,i)=>{const w=new Map();for(const [txt,wt] of [[f.q,3],[f.kw,2.5],[f.cat,2],[f.a,1]])for(const g of grams(txt))w.set(g,Math.max(w.get(g)||0,wt));for(const [g,wt] of w){if(!post.has(g))post.set(g,new Map());post.get(g).set(i,wt);}});const idf=new Map();for(const [g,m] of post)idf.set(g,Math.log(1+FAQ.length/m.size));return {post,idf};})();
+function search(q,k=5){const qg=grams(q);let max=0;const sc=new Array(FAQ.length).fill(0);for(const g of qg){const m=IX.post.get(g);const w=IX.idf.get(g)||Math.log(1+FAQ.length);max+=w*3;if(!m)continue;for(const [i,wt] of m)sc[i]+=w*wt;}return sc.map((s,i)=>({f:FAQ[i],s,r:max?s/max:0})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,k);}
+const byId = Object.fromEntries(FAQ.map(f => [f.id, f]));
+
+/* ---------- prompt ---------- */
+const RULES = `あなたはTechBridge Solutions株式会社の社内ITヘルプデスクFAQボットです。社員からの質問に答えます。
+ルール:
+1. 下の「参考FAQ」に書かれている内容だけを根拠に回答する。参考FAQにない手順・URL・連絡先・社内規程を作らない。
+2. 参考FAQで答えられない質問には「社内FAQに該当する情報が見つかりませんでした」と伝え、${IT_CONTACT}への問い合わせを案内する。人事・経理の個別の事情（給与額など）には答えない。
+3. 丁寧で簡潔な口調。手順は「1.」「2.」の番号付きで書く。前置きは1文以内。
+4. 困りごとが複数あれば、それぞれに答える。
+5. 端末の紛失・不審な認証通知・フィッシングなどセキュリティに関わる内容は、最初にすぐやるべきことを伝える。
+6. マークダウンの見出し・太字・表は使わない。
+7. 最後の行に必ず「参照: 」に続けて、根拠にしたFAQ IDをカンマ区切りで書く。根拠がなければ「参照: なし」と書く。`;
+function buildPrompt(question, hits, history){
+  const ctx = hits.length ? hits.map(h=>`[${h.f.id}] カテゴリ: ${h.f.cat}\n質問: ${h.f.q}\n回答: ${h.f.a}\n解決しない場合の連絡先: ${h.f.contact}`).join("\n\n") : "（該当する候補はありません）";
+  const hist = history.length ? "\n\nこれまでの会話（参考）:\n" + history.map(t=>`${t.role==="user"?"社員":"ボット"}: ${t.content}`).join("\n") : "";
+  return `${RULES}\n\n参考FAQ:\n${ctx}${hist}\n\n社員の質問: ${question}`;
+}
+function parseAnswer(text){
+  const m = text.match(/\n?\s*参照[:：]\s*([^\n]*)\s*$/);
+  const ids = m ? [...new Set((m[1].match(/[A-Z]+-\d{3}/g)||[]).filter(id=>byId[id]))] : [];
+  return { body: (m ? text.slice(0, m.index) : text).trim(), ids, hasRef: !!m };
+}
+
+/* ---------- sample ---------- */
+let sample = null, sampleReady = false;
+const modeEl = $("#mode");
+(async () => {
+  try { sample = window.claude ? await window.claude.use("sample") : null; } catch { sample = null; }
+  sampleReady = true; renderMode();
+})();
+setTimeout(()=>{ if(!sampleReady){ sampleReady=true; renderMode(); } }, 11000);
+function renderMode(){
+  modeEl.replaceChildren();
+  if (sample) modeEl.append("社内FAQから関連する候補を検索し、Claudeがその内容だけをもとに回答を作成します。");
+  else modeEl.append(el("b",{text:"検索のみモード"}),"：生成AIに接続していないため、検索でいちばん近いFAQをそのまま表示します。生成AIによる回答はclaude.ai上の公開版で試せます。");
+}
+function errCopy(code){
+  return ({not_granted:"Claudeの利用が許可されなかったため、回答を作成できませんでした。検索結果のFAQを参考にしてください。",
+    rate_limited:"短時間に質問が集中しました。少し待ってからもう一度送信してください。",
+    cancelled:"回答を停止しました。"})[code] || "回答を作成できませんでした。もう一度送信するか、下の検索結果を参考にしてください。";
+}
+async function ask(question, hits, history, opts={}){
+  if (!sample) {
+    const top = hits[0];
+    if (!top || top.r < 0.08) return { body: `社内FAQに該当する情報が見つかりませんでした。\n${IT_CONTACT}へお問い合わせください。`, ids: [], fallback:true };
+    return { body: `「${top.f.q}」の回答です。\n\n${top.f.a}`, ids: [top.f.id], fallback:true };
+  }
+  const { text } = await sample(buildPrompt(question, hits, history), { modelTier: "quick", ...opts });
+  return parseAnswer(text);
+}
+
+/* ---------- chat ---------- */
+const log = $("#log"), form = $("#form"), qbox = $("#q"), sendBtn = $("#send"), stopBtn = $("#stop");
+const history = []; let ctl = null;
+["VPNにつながりません","パスワードを忘れました","Authenticatorを新しいスマホに移したい","有給休暇を申請したい"].forEach(s=>$("#sugs").append(el("button",{type:"button",text:s,onclick:()=>{qbox.value=s;form.requestSubmit();}})));
+qbox.addEventListener("input",()=>{qbox.style.height="auto";qbox.style.height=Math.min(qbox.scrollHeight,140)+"px";});
+qbox.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();form.requestSubmit();}});
+stopBtn.onclick=()=>ctl?.abort();
+function showFaq(id){const f=byId[id];if(!f)return;$("#dlg-t").textContent=`${f.id}　${f.q}`;$("#dlg-m").textContent=`カテゴリ：${f.cat}　／　解決しない場合：${f.contact}`;$("#dlg-a").textContent=f.a;$("#dlg").showModal();}
+$("#dlg-c").onclick=()=>$("#dlg").close();
+function traceEl(hits, ids){
+  const d = el("details",{class:"trace"}, el("summary",{text:`検索されたFAQ候補（${hits.length}件）を見る`}));
+  const ol = el("ol");
+  hits.forEach(h=>{const used=ids.includes(h.f.id);const pct=Math.round(Math.min(1,h.r)*100);
+    ol.append(el("li",{}, el("button",{type:"button",class:"chip"+(used?" id":""),text:h.f.id,onclick:()=>showFaq(h.f.id)}),
+      el("div",{class:"meter",title:`一致度 ${pct}%`},el("i",{style:`width:${Math.max(4,pct)}%`})),
+      el("span",{class:"small"+(used?" used":""),text:used?"回答に使用":`一致度 ${pct}%`}),
+      el("span",{class:"q",text:h.f.q})));});
+  d.append(ol); return d;
+}
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const question = qbox.value.trim(); if (!question || sendBtn.disabled) return;
+  $("#empty")?.remove();
+  qbox.value=""; qbox.style.height="auto";
+  log.append(el("div",{class:"msg me",text:question}));
+  const hits = search(question, 5);
+  const bubble = el("div",{class:"bubble thinking",text:"FAQを検索して回答を作成しています…"});
+  const wrap = el("div",{class:"msg bot"}, el("p",{class:"who",text:"ITヘルプデスク"}), bubble);
+  log.append(wrap); wrap.scrollIntoView({block:"end",behavior:"smooth"});
+  sendBtn.disabled=true; stopBtn.hidden=!sample; ctl=new AbortController();
+  let res;
+  try {
+    res = await ask(question, hits, history.slice(-4), { cache:false, signal: ctl.signal, onText: ({text}) => { bubble.classList.remove("thinking"); bubble.textContent = text.replace(/\n?\s*参照[:：][^\n]*$/,""); } });
+  } catch (err) {
+    res = { body: (err && err.text ? err.text.replace(/\n?\s*参照[:：][^\n]*$/,"") + "\n\n" : "") + errCopy(err && err.code), ids: [], error: true };
+  }
+  bubble.classList.remove("thinking"); bubble.textContent = res.body;
+  if (!res.error) { history.push({role:"user",content:question},{role:"assistant",content:res.body}); }
+  const cites = el("div",{class:"cites"}, res.ids.length ? "参照したFAQ：" : "参照したFAQ：なし");
+  res.ids.forEach(id=>cites.append(el("button",{type:"button",class:"chip id",text:id,title:byId[id].q,onclick:()=>showFaq(id)})));
+  wrap.append(cites);
+  if (hits.length) wrap.append(traceEl(hits, res.ids));
+  const contact = res.ids.length ? byId[res.ids[0]].contact : IT_CONTACT;
+  const esc = el("div",{class:"esc",hidden:""}, "解決しなかった場合は、こちらへお問い合わせください：", el("br"), el("strong",{text:contact}));
+  const yes = el("button",{type:"button","aria-pressed":"false",text:"解決した"});
+  const no = el("button",{type:"button","aria-pressed":"false",text:"解決しない"});
+  yes.onclick=()=>{yes.setAttribute("aria-pressed","true");no.setAttribute("aria-pressed","false");esc.hidden=true;};
+  no.onclick=()=>{no.setAttribute("aria-pressed","true");yes.setAttribute("aria-pressed","false");esc.hidden=false;};
+  wrap.append(el("div",{class:"fb"},"この回答で解決しましたか？",yes,no), esc);
+  if (!res.ids.length && !res.error) esc.hidden=false;
+  sendBtn.disabled=false; stopBtn.hidden=true; qbox.focus();
+  wrap.scrollIntoView({block:"end",behavior:"smooth"});
+});
+
+/* ---------- tests ---------- */
+const KEY="tb-faqbot-judge-v1";
+let judge={}; try{judge=JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch{judge={};}
+const saveJ=()=>{try{localStorage.setItem(KEY,JSON.stringify(judge));}catch{}};
+const tbody=$("#tbody"); const rowRun=[];
+function expIds(t){return t.exp==="該当なし"?[]:t.exp.split("/").map(s=>s.trim());}
+let recallHit=0, recallN=0;
+TESTS.forEach((t,i)=>{
+  const hits=search(t.q,5), ids=hits.map(h=>h.f.id), exp=expIds(t);
+  const isHit = exp.length ? exp.every(x=>ids.includes(x)) : null;
+  if (exp.length){recallN++; if(isHit) recallHit++;}
+  const idsCell=el("div",{class:"ids"}); ids.forEach(id=>idsCell.append(el("span",{class:exp.includes(id)?"hit":"",text:id})));
+  idsCell.append(el("div",{class:"small "+(isHit===null?"":isHit?"hit":"miss"),text:isHit===null?"範囲外の質問":isHit?"正解を含む":"正解を含まない"}));
+  const ansCell=el("td");
+  const runBtn=el("button",{type:"button",class:"linkbtn",text:"ボットに聞く"});
+  ansCell.append(runBtn);
+  const jud=el("div",{class:"judge"});
+  ["OK","部分的","NG"].forEach(v=>jud.append(el("button",{type:"button","data-v":v,"aria-pressed":String(judge[i]===v),text:v,onclick:()=>{judge[i]=judge[i]===v?undefined:v;if(!judge[i])delete judge[i];saveJ();[...jud.children].forEach(b=>b.setAttribute("aria-pressed",String(judge[i]===b.dataset.v)));stats();}})));
+  async function run(){
+    runBtn.disabled=true; runBtn.textContent="回答を作成中…";
+    const out=el("div",{class:"ans",text:""}); ansCell.querySelector(".ans")?.remove(); ansCell.querySelector(".refs")?.remove(); ansCell.append(out);
+    try{
+      const r=await ask(t.q,hits,[],{onText:({text})=>{out.textContent=text;}});
+      out.textContent=r.body;
+      const ok = exp.length ? exp.every(x=>r.ids.includes(x)) : r.ids.length===0;
+      ansCell.append(el("div",{class:"small refs "+(ok?"hit":"miss"),text:`参照: ${r.ids.join(", ")||"なし"}（${ok?"期待どおり":"期待と異なる"}）`}));
+    }catch(err){ out.textContent=errCopy(err&&err.code); }
+    runBtn.disabled=false; runBtn.textContent="もう一度聞く";
+  }
+  runBtn.onclick=run; rowRun.push(run);
+  tbody.append(el("tr",{}, el("td",{},t.q,el("div",{class:"small",text:t.point})), el("td",{class:"ids",text:t.exp}), el("td",{},idsCell), ansCell, el("td",{},jud)));
+});
+$("#s-recall").textContent=`${Math.round(recallHit/recallN*100)}%（${recallHit}/${recallN}）`;
+function stats(){const v=Object.values(judge);const ok=v.filter(x=>x==="OK").length;$("#s-acc").textContent=v.length?`${Math.round(ok/v.length*100)}%（${ok}/${v.length}）`:"–";$("#s-acc-note").textContent=v.length?`OK ${ok}・部分的 ${v.filter(x=>x==="部分的").length}・NG ${v.filter(x=>x==="NG").length}／全${TESTS.length}問`:"「ボットに聞く」で回答を確認し、判定を付けてください。";}
+stats();
+$("#runAll").onclick=async e=>{e.target.disabled=true;for(const r of rowRun){await r();}e.target.disabled=false;};
+$("#resetJ").onclick=()=>{judge={};saveJ();document.querySelectorAll(".judge button").forEach(b=>b.setAttribute("aria-pressed","false"));stats();};
+
+/* ---------- faq list ---------- */
+const cats=["すべて",...new Set(FAQ.map(f=>f.cat))]; let cat="すべて";
+const filters=$("#filters");
+cats.forEach(c=>filters.append(el("button",{type:"button","aria-pressed":String(c===cat),text:c==="すべて"?`すべて（${FAQ.length}）`:`${c}（${FAQ.filter(f=>f.cat===c).length}）`,onclick:e=>{cat=c;[...filters.children].forEach(b=>b.setAttribute("aria-pressed",String(b===e.currentTarget)));renderFaq();}})));
+function renderFaq(){const q=norm($("#fq").value);const list=$("#faqlist");list.replaceChildren();
+  FAQ.filter(f=>(cat==="すべて"||f.cat===cat)&&(!q||norm(f.q+f.a+f.kw+f.id).includes(q))).forEach(f=>list.append(el("details",{class:"faq"},el("summary",{},el("code",{text:f.id}),el("span",{text:f.q})),el("div",{class:"body"},f.a,el("span",{class:"small",text:`キーワード：${f.kw}　／　解決しない場合：${f.contact}`})))));
+  if(!list.children.length) list.append(el("p",{class:"small",text:"条件に合うFAQはありません。キーワードを変えてみてください。"}));}
+$("#fq").addEventListener("input",renderFaq); renderFaq();
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));["chat","test","faq"].forEach(t=>$("#tab-"+t).hidden=t!==b.dataset.tab);$("#composer").hidden=b.dataset.tab!=="chat";});
+</script>
+</body>
+</html>
